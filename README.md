@@ -98,13 +98,27 @@ If none of these are set, Solid Cache will use the `ActiveRecord::Base` connecti
 
 ### Single database configuration
 
-Running Solid Cache in a separate database is recommended, but it's also possible to use one single database for both the app and the cache. Follow these steps:
+Running Solid Cache in a separate database is recommended, but for PostgreSQL/MySQL/Trilogy you can use a single physical database and still keep separate connection pools for app and cache traffic.
 
-1. Copy the contents of `db/cache_schema.rb` into a normal migration and delete `db/cache_schema.rb`
-2. Remove the `database: cache` line from `config/cache.yml` in the production section
-3. Migrate your database. You are ready to run `bin/rails server`
+1. Move the schema from `db/cache_schema.rb` (or `db/cache_structure.sql`) into a normal app migration, then delete the cache schema file
+2. Keep `database: cache` in `config/cache.yml`
+3. Point `primary` and `cache` at the same database in `config/database.yml`, and disable database tasks for `cache`:
 
-You won't have multiple databases, so `database.yml` doesn't need to have primary and cache database.
+```yaml
+production:
+  primary: &primary_production
+    <<: *default
+    database: app_production
+    username: app
+    password: <%= ENV["APP_DATABASE_PASSWORD"] %>
+  cache:
+    <<: *primary_production
+    database_tasks: false
+```
+
+4. Run `bin/rails db:migrate`
+
+Do not use this setup with SQLite. SQLite allows only one write transaction at a time, so separate pools to the same database can block each other. For SQLite, use a separate cache database.
 
 ### Engine configuration
 
